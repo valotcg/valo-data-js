@@ -1,0 +1,5647 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Valo.Data API",
+    "summary": "Trading card catalogue and market prices: Cardmarket, US market, eBay sales, graded prices, populations.",
+    "description": "\nCatalogue and price data for trading card games (Pokémon, One Piece, Yu-Gi-Oh!, Magic, Lorcana and more):\nCardmarket and US market prices, eBay sold prices, graded prices, PSA/PCA/CCC populations and price history.\n\n## Français\n\n**Authentification.** Chaque requête porte une clé API : `Authorization: Bearer vd_live_…`. Les clés se créent dans\nle [portail développeur](https://valotcg.com/developers/account) et ne sont affichées qu'une fois. `vd_test_` et\n`vd_live_` sont une étiquette choisie à la création pour séparer préproduction et production : mêmes données, mêmes\ncrédits, mêmes quotas. Une clé peut porter une date d'expiration (`401 api_key_expired`), une liste d'adresses IP ou\nde blocs CIDR autorisés (`403 ip_not_allowed`) et un plafond mensuel de crédits (`429 key_credit_cap_reached`). Le Sandbox\nsert les mêmes prix que les forfaits payants, sans les cotes gradées ni les populations. Les\nidentifiants et les liens Cardmarket et marché US (`cardmarket_product_id`, `tcgplayer_product_id`, `cardmarket_url`,\n`tcgplayer_url`) sont inclus à partir de Growth : ils valent `null` en Sandbox et en Starter.\n\n**Autres langues.** À partir de Growth, la fiche `GET /data/v1/cards/{card_id}` donne les versions de la même carte dans\nd'autres langues (`other_languages`), sans crédit supplémentaire. Une même langue peut revenir plusieurs fois quand\nl'illustration a été imprimée dans plusieurs éditions : `POST /data/v1/cards/batch` renvoie leur édition, leur numéro et\nleurs prix. `[]` quand aucune autre version n'est connue, `null` en Sandbox et en Starter. Tous les jeux ne sont pas couverts.\n\n**Crédits.** Chaque forfait inclut des crédits mensuels (barème ci-dessous). Les réponses en erreur ne sont jamais\nfacturées. Une fois les crédits épuisés, l'API répond `429 quota_exceeded` jusqu'au renouvellement (`resets_at`). Le Sandbox\nlit au plus 250 cartes et produits scellés distincts par mois, toutes routes confondues ; une fiche déjà lue\nreste disponible, une nouvelle au-delà répond `429 catalog_limit_reached`. Il envoie au plus 100 requêtes facturées\npar jour (UTC) : au-delà, `429 daily_limit_reached` jusqu'à minuit UTC (`resets_at`).\n\n**Débit.** Les requêtes sont limitées par organisation et par minute selon le forfait : `429 rate_limited`, à rejouer après\n`Retry-After` secondes.\n\n**Prix.** Chaque source garde sa devise native, sans conversion. `amount` vaut `null` (jamais `0`) dès que `status`\nn'est pas `available`. `observed_at` est la date d'observation par la source ; `computed_at` celle du dernier calcul.\nLes ventes eBay sont collectées au mieux (`collection: best_effort`).\n\n**Analyses.** Les routes `/data/v1/analysis/*` répondent prêt à afficher : identification d'une carte à partir d'un texte libre, prix recommandé, fiabilité et variations sur 7, 30 et 90 jours, plus fortes hausses et baisses, comparaison, synthèse d'une édition. `recommended` est le prix qu'affiche l'app ValoTCG, toujours en EUR : le marché US y est converti au dernier taux BCE (`fx_rate`), alors que `prices[]` garde la devise native.\n\n**Pagination.** Les listes renvoient `next_cursor` ; passez-le en `cursor` pour la page suivante (`page_size` ≤ 100).\n\n**Attribution.** Affichez « Données : [ValoTCG](https://valotcg.com) » à proximité des données affichées. Voir les\n[conditions de l'API](https://valotcg.com/developers/terms).\n\n## English\n\n**Authentication.** Every request carries an API key: `Authorization: Bearer vd_live_…`. Keys are created in the\n[developer portal](https://valotcg.com/developers/account) and shown once. `vd_test_` and `vd_live_` are a label\nchosen at creation to separate staging from production: same data, same credits, same quotas. A key may carry an\nexpiry date (`401 api_key_expired`), a list of allowed IP addresses or CIDR blocks (`403 ip_not_allowed`) and a\nmonthly credit cap (`429 key_credit_cap_reached`). The Sandbox serves the same prices as paid plans, without graded prices\nand populations. Cardmarket and US market ids and links\n(`cardmarket_product_id`, `tcgplayer_product_id`, `cardmarket_url`, `tcgplayer_url`) are included from Growth up:\nthey are `null` on Sandbox and Starter.\n\n**Other languages.** From Growth up, the sheet `GET /data/v1/cards/{card_id}` lists the versions of the same card in\nother languages (`other_languages`), at no extra credit. One language can appear several times when the artwork was\nprinted in several sets: `POST /data/v1/cards/batch` returns their edition, number and prices. `[]` when no other version\nis known, `null` on Sandbox and Starter. Not every game is covered.\n\n**Credits.** Each plan includes monthly credits (scale below). Error responses are never billed. Once credits are\nexhausted, the API answers `429 quota_exceeded` until renewal (`resets_at`). The Sandbox reads at most 250\ndistinct cards and sealed products per month across all routes; an item already read stays available, a new one\nbeyond the cap answers `429 catalog_limit_reached`. It sends at most 100 billed requests per day (UTC): beyond that,\n`429 daily_limit_reached` until UTC midnight (`resets_at`).\n\n**Throughput.** Requests are limited per organization and per minute depending on the plan: `429 rate_limited`, retry after\n`Retry-After` seconds.\n\n**Prices.** Each source keeps its native currency, never converted. `amount` is `null` (never `0`) whenever `status`\nis not `available`. `observed_at` is the day the source observed the price; `computed_at` the last recompute.\neBay sales are collected on a best effort basis (`collection: best_effort`).\n\n**Analysis.** The `/data/v1/analysis/*` routes answer ready to display: card identification from free text, recommended price, reliability and 7, 30 and 90-day changes, top rises and falls, most valuable cards or sealed products, comparison, edition overview. `recommended` is the price the ValoTCG app shows, always in EUR: the US market is converted at the latest ECB rate (`fx_rate`), while `prices[]` keeps each native currency.\n\n**Pagination.** Lists return `next_cursor`; send it back as `cursor` for the next page (`page_size` ≤ 100).\n\n**Attribution.** Show “Data: [ValoTCG](https://valotcg.com)” next to the displayed data. See the\n[API terms](https://valotcg.com/developers/terms).\n\n## Credits · Crédits\n\n| Request · Requête | Credits |\n|---|---:|\n| `GET /data/v1/games`, `GET /data/v1/games/{game}/rarities`, `GET /developer/v1/usage`, any 4xx/5xx | 0 |\n| One read, one search page, one page of editions | 1 |\n| `POST /data/v1/cards/batch` (≤ 100 ids, raw prices) | 1 |\n| `include=graded` / `include=population` (Starter+) | +1 per card each |\n| One page of price history (bounded by the plan) | 3 |\n| `GET /data/v1/analysis/identify`, `…/cards/{id}/summary`, `…/sealed/{id}/summary` | 1 (+1 per include) |\n| `POST /data/v1/analysis/compare` (≤ 10 ids) | 1 (+1 per card include) |\n| `GET /data/v1/analysis/top-movers`, `…/top-priced`, `…/editions/{id}/overview` | 3 |\n\n## Response headers · En-têtes de réponse\n\n`X-Request-Id`, `X-Credits-Used`, `X-Credits-Remaining`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`,\n`X-RateLimit-Reset` (Unix time).\n\n## Errors · Erreurs\n\n`{\"error\": {\"code\": \"card_not_found\", \"message\": \"…\", \"request_id\": \"req_…\", \"docs_url\": \"…\"}}`\n\n| Status | Codes |\n|---|---|\n| 401 | `invalid_api_key`, `api_key_expired` |\n| 403 | `insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed` |\n| 404 | `game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`, `not_found` |\n| 422 | `invalid_request`, `invalid_cursor`, `range_exceeds_plan` |\n| 429 | `rate_limited`, `quota_exceeded`, `key_credit_cap_reached`, `catalog_limit_reached`, `daily_limit_reached` |\n| 500 · 503 | `internal_error` (not billed), `quota_unavailable` |\n",
+    "termsOfService": "https://valotcg.com/developers/terms",
+    "contact": {
+      "name": "ValoTCG",
+      "url": "https://valotcg.com/developers",
+      "email": "contact@valotcg.com"
+    },
+    "version": "1.0.1"
+  },
+  "servers": [
+    {
+      "url": "https://api.valotcg.com",
+      "description": "Production"
+    },
+    {
+      "url": "https://api.preprod.valotcg.com",
+      "description": "Preproduction"
+    }
+  ],
+  "paths": {
+    "/data/v1/games": {
+      "get": {
+        "tags": [
+          "Games"
+        ],
+        "summary": "List games (0 credit)",
+        "operationId": "get_games_data_v1_games_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ]
+      }
+    },
+    "/data/v1/games/{game}/rarities": {
+      "get": {
+        "tags": [
+          "Games"
+        ],
+        "summary": "List rarity codes of a game (0 credit)",
+        "description": "Canonical rarity codes of a game: the values of `rarity_code` on cards, accepted by the `rarity` filter of\n`GET /data/v1/cards`. Every code of the game is listed, including codes no card carries yet.",
+        "operationId": "get_game_rarities_data_v1_games__game__rarities_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Game slug from GET /data/v1/games.",
+              "title": "Game"
+            },
+            "description": "Game slug from GET /data/v1/games."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRarities"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/editions": {
+      "get": {
+        "tags": [
+          "Editions"
+        ],
+        "summary": "List editions of a game (1 credit)",
+        "operationId": "search_editions_data_v1_editions_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Game slug from GET /data/v1/games.",
+              "title": "Game"
+            },
+            "description": "Game slug from GET /data/v1/games."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Part of the edition name (accents and case ignored) or of its set code (separators ignored), e.g. `flammes`, `SV06`, `eb05`.",
+              "title": "Q"
+            },
+            "description": "Part of the edition name (accents and case ignored) or of its set code (separators ignored), e.g. `flammes`, `SV06`, `eb05`."
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fr",
+                    "en",
+                    "ja",
+                    "zh",
+                    "de",
+                    "es",
+                    "it",
+                    "pt"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_EditionSummary_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/cards": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Search cards (1 credit)",
+        "operationId": "search_cards_data_v1_cards_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Game slug from GET /data/v1/games.",
+              "title": "Game"
+            },
+            "description": "Game slug from GET /data/v1/games."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Name (FR/EN) or number.",
+              "title": "Q"
+            },
+            "description": "Name (FR/EN) or number."
+          },
+          {
+            "name": "edition_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Edition Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fr",
+                    "en",
+                    "ja",
+                    "zh",
+                    "de",
+                    "es",
+                    "it",
+                    "pt"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "name": "rarity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Canonical rarity code from GET /data/v1/games/{game}/rarities (e.g. `holo_rare`, all languages of the system), or the rarity label as printed (case-insensitive).",
+              "title": "Rarity"
+            },
+            "description": "Canonical rarity code from GET /data/v1/games/{game}/rarities (e.g. `holo_rare`, all languages of the system), or the rarity label as printed (case-insensitive)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_CardSummary_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/cards/{card_id}": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Card sheet (1 credit)",
+        "operationId": "read_card_data_v1_cards__card_id__get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/cards/{card_id}/prices": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Current prices (1 credit, +1 per include)",
+        "operationId": "read_card_prices_data_v1_cards__card_id__prices_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma separated: `graded` (+1 credit, Starter+), `population` (+1, Starter+).",
+              "title": "Include"
+            },
+            "description": "Comma separated: `graded` (+1 credit, Starter+), `population` (+1, Starter+)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardPrices"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/cards/batch": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Batch prices for cards and sealed products (1 credit per 100, +1 per card include)",
+        "operationId": "batch_prices_data_v1_cards_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ]
+      }
+    },
+    "/data/v1/cards/{card_id}/price-history": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Daily price history of one source (3 credits)",
+        "operationId": "read_card_price_history_data_v1_cards__card_id__price_history_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "cardmarket",
+                "us_market",
+                "ebay"
+              ],
+              "type": "string",
+              "title": "Source"
+            }
+          },
+          {
+            "name": "variant",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "default",
+                "foil"
+              ],
+              "type": "string",
+              "default": "default",
+              "title": "Variant"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to the oldest day allowed.",
+              "title": "From"
+            },
+            "description": "Defaults to the oldest day allowed."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to today.",
+              "title": "To"
+            },
+            "description": "Defaults to today."
+          },
+          {
+            "name": "market_language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "fr",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`fr`: cheapest French-language Cardmarket offer of a French card (`source=cardmarket`, `variant=default`). Collected weekly at best: only observed days are returned, each with its condition.",
+              "title": "Market Language"
+            },
+            "description": "`fr`: cheapest French-language Cardmarket offer of a French card (`source=cardmarket`, `variant=default`). Collected weekly at best: only observed days are returned, each with its condition."
+          },
+          {
+            "name": "condition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "NM",
+                    "EX",
+                    "GD",
+                    "LP",
+                    "PL",
+                    "PO"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With `market_language=fr`: curve of this condition only. Default: best condition of each day.",
+              "title": "Condition"
+            },
+            "description": "With `market_language=fr`: curve of this condition only. Default: best condition of each day."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardPriceHistory"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/sealed": {
+      "get": {
+        "tags": [
+          "Sealed"
+        ],
+        "summary": "Search sealed products (1 credit)",
+        "operationId": "search_sealed_data_v1_sealed_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Game slug from GET /data/v1/games.",
+              "title": "Game"
+            },
+            "description": "Game slug from GET /data/v1/games."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Product name.",
+              "title": "Q"
+            },
+            "description": "Product name."
+          },
+          {
+            "name": "edition_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Edition Id"
+            }
+          },
+          {
+            "name": "product_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "e.g. booster, display, etb.",
+              "title": "Product Type"
+            },
+            "description": "e.g. booster, display, etb."
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fr",
+                    "en",
+                    "ja",
+                    "zh",
+                    "de",
+                    "es",
+                    "it",
+                    "pt"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_SealedSummary_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/sealed/{sealed_id}": {
+      "get": {
+        "tags": [
+          "Sealed"
+        ],
+        "summary": "Sealed product sheet (1 credit)",
+        "operationId": "read_sealed_data_v1_sealed__sealed_id__get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sealed_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Sealed Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealedDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/sealed/{sealed_id}/prices": {
+      "get": {
+        "tags": [
+          "Sealed"
+        ],
+        "summary": "Current prices (1 credit)",
+        "operationId": "read_sealed_prices_data_v1_sealed__sealed_id__prices_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sealed_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Sealed Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealedPrices"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/sealed/{sealed_id}/price-history": {
+      "get": {
+        "tags": [
+          "Sealed"
+        ],
+        "summary": "Daily price history of one source (3 credits)",
+        "operationId": "read_sealed_price_history_data_v1_sealed__sealed_id__price_history_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sealed_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Sealed Id"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "cardmarket",
+                "us_market",
+                "ebay"
+              ],
+              "type": "string",
+              "title": "Source"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to the oldest day allowed.",
+              "title": "From"
+            },
+            "description": "Defaults to the oldest day allowed."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to today.",
+              "title": "To"
+            },
+            "description": "Defaults to today."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealedPriceHistory"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/analysis/identify": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Identify a card from free text (1 credit)",
+        "operationId": "identify_data_v1_analysis_identify_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120,
+              "description": "Name, number and edition in any order, e.g. \"dracaufeu 199 151 fr\", \"OP05-119 luffy\".",
+              "title": "Q"
+            },
+            "description": "Name, number and edition in any order, e.g. \"dracaufeu 199 151 fr\", \"OP05-119 luffy\"."
+          },
+          {
+            "name": "game",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Game slug; all games when omitted.",
+              "title": "Game"
+            },
+            "description": "Game slug; all games when omitted."
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fr",
+                    "en",
+                    "ja",
+                    "zh",
+                    "de",
+                    "es",
+                    "it",
+                    "pt"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only cards printed in this language.",
+              "title": "Language"
+            },
+            "description": "Only cards printed in this language."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentifyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/analysis/cards/{card_id}/summary": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Recommended price, reliability and changes of a card (1 credit, +1 per include)",
+        "operationId": "card_price_summary_data_v1_analysis_cards__card_id__summary_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma separated: `graded` (+1 credit), `population` (+1, Starter+).",
+              "title": "Include"
+            },
+            "description": "Comma separated: `graded` (+1 credit), `population` (+1, Starter+)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/analysis/sealed/{sealed_id}/summary": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Recommended price, reliability and changes of a sealed product (1 credit)",
+        "operationId": "sealed_price_summary_data_v1_analysis_sealed__sealed_id__summary_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sealed_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Sealed Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/analysis/compare": {
+      "post": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Compare up to 10 cards and sealed products (1 credit, +1 per card include)",
+        "operationId": "compare_prices_data_v1_analysis_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ]
+      }
+    },
+    "/data/v1/analysis/top-movers": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Largest price rises or falls of a game or an edition (3 credits)",
+        "operationId": "read_top_movers_data_v1_analysis_top_movers_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Game slug from GET /data/v1/games.",
+              "title": "Game"
+            },
+            "description": "Game slug from GET /data/v1/games."
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Period in days: 7, 30 or 90.",
+              "enum": [
+                7,
+                30,
+                90
+              ],
+              "default": 30,
+              "title": "Period"
+            },
+            "description": "Period in days: 7, 30 or 90."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "up",
+                "down"
+              ],
+              "type": "string",
+              "description": "`up`: rises, `down`: falls.",
+              "default": "up",
+              "title": "Direction"
+            },
+            "description": "`up`: rises, `down`: falls."
+          },
+          {
+            "name": "edition_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Edition Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fr",
+                    "en",
+                    "ja",
+                    "zh",
+                    "de",
+                    "es",
+                    "it",
+                    "pt"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only cards printed in this language.",
+              "title": "Language"
+            },
+            "description": "Only cards printed in this language."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "reliable",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "`true`: only the moves the recommended price backs: that price is not of `low` confidence, the market of the move quotes the card within x2 of it (the US market for English and Japanese prints only), a Cardmarket trend is within x2 of its 30-day average, no other market moved the other way, and a price doubled or halved is measured by two markets. Fewer items when fewer moves qualify.",
+              "default": false,
+              "title": "Reliable"
+            },
+            "description": "`true`: only the moves the recommended price backs: that price is not of `low` confidence, the market of the move quotes the card within x2 of it (the US market for English and Japanese prints only), a Cardmarket trend is within x2 of its 30-day average, no other market moved the other way, and a price doubled or halved is measured by two markets. Fewer items when fewer moves qualify."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopMovers"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/analysis/top-priced": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Most valuable cards or sealed products of a game, an edition or a language (3 credits)",
+        "description": "Ranked by `recommended.amount`, the price the ValoTCG app shows (EUR), across the whole catalogue of the game,\nevery edition and language unless filtered.",
+        "operationId": "read_top_priced_data_v1_analysis_top_priced_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Game slug from GET /data/v1/games.",
+              "title": "Game"
+            },
+            "description": "Game slug from GET /data/v1/games."
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "card",
+                "sealed"
+              ],
+              "type": "string",
+              "description": "`card`: cards, `sealed`: sealed products.",
+              "title": "Kind"
+            },
+            "description": "`card`: cards, `sealed`: sealed products."
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fr",
+                    "en",
+                    "ja",
+                    "zh",
+                    "de",
+                    "es",
+                    "it",
+                    "pt"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only items printed in this language.",
+              "title": "Language"
+            },
+            "description": "Only items printed in this language."
+          },
+          {
+            "name": "edition_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Edition Id"
+            }
+          },
+          {
+            "name": "product_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`kind=sealed` only: this product type (booster, display, etb…).",
+              "title": "Product Type"
+            },
+            "description": "`kind=sealed` only: this product type (booster, display, etb…)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopPriced"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/v1/analysis/editions/{edition_id}/overview": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Chase cards, sealed products and price coverage of an edition (3 credits)",
+        "operationId": "read_edition_overview_data_v1_analysis_editions__edition_id__overview_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "edition_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Edition Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditionOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`insufficient_scope`, `subscription_inactive`, `plan_feature_unavailable`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`game_not_found`, `card_not_found`, `sealed_not_found`, `edition_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`, `invalid_cursor`, `range_exceeds_plan`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (see `Retry-After`), `quota_exceeded`, `key_credit_cap_reached` (key credit cap), `catalog_limit_reached` or `daily_limit_reached` (Sandbox)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`quota_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developer/v1/usage": {
+      "get": {
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Credits, scans or questions used in the current window (0 credit)",
+        "operationId": "get_usage_developer_v1_usage_get",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "data",
+                "vision",
+                "ia"
+              ],
+              "type": "string",
+              "description": "`data` (credits), `vision` (scans) or `ia` (questions).",
+              "default": "data",
+              "title": "Product"
+            },
+            "description": "`data` (credits), `vision` (scans) or `ia` (questions)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_api_key`, `api_key_expired` or `not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`subscription_inactive`, `ip_not_allowed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`organization_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BatchItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The id as sent."
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "card",
+                  "sealed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "`null` when the id is not recognised."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "not_found"
+            ],
+            "title": "Status"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sealed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SealedSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prices": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PriceQuote"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prices"
+          },
+          "graded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradedPrices"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "population": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PopulationReport"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Population"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "status"
+        ],
+        "title": "BatchItem"
+      },
+      "BatchRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Ids",
+            "description": "Up to 100 card ids, or sealed product ids prefixed with `sealed:` (e.g. `sealed:1234`)."
+          },
+          "include": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "graded",
+                "population"
+              ]
+            },
+            "type": "array",
+            "title": "Include",
+            "description": "Extra blocks, billed per card."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "BatchRequest"
+      },
+      "BatchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BatchItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "BatchResponse"
+      },
+      "CardDetail": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id",
+            "description": "Stable Valo.Data card id."
+          },
+          "game": {
+            "type": "string",
+            "title": "Game",
+            "description": "Game slug, e.g. `pokemon`, `onepiece`, `star_wars_unlimited`."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Printed name in the card language."
+          },
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En",
+            "description": "English name when known; `name` on an English card."
+          },
+          "number": {
+            "type": "string",
+            "title": "Number",
+            "description": "Collector number as printed, e.g. `001/102`, `OP01-012`."
+          },
+          "rarity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rarity",
+            "description": "Rarity label as printed on the card or as given by the source, in the card language, e.g. `Illustration spéciale rare`, `SuperRare`."
+          },
+          "rarity_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rarity Code",
+            "description": "Canonical rarity code, shared by every language of one rarity system, e.g. `special_illustration_rare`. Japanese and Chinese Pokémon prints follow their own system (`sar`, `ur`). `null` when the rarity is unknown. Codes of a game: `GET /data/v1/games/{game}/rarities`."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Language",
+            "description": "Language of the printed card."
+          },
+          "edition": {
+            "$ref": "#/components/schemas/EditionRef"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "variants": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "default",
+                "foil"
+              ]
+            },
+            "type": "array",
+            "title": "Variants",
+            "description": "Price variants tracked for this card: `default` (main printing) and, for games pricing foils separately, `foil`."
+          },
+          "cardmarket_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardmarket Product Id",
+            "description": "Cardmarket idProduct; `null` on Sandbox and Starter."
+          },
+          "tcgplayer_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "US market product id",
+            "description": "US market product id; `null` on Sandbox and Starter."
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series",
+            "description": "Series or block of the edition."
+          },
+          "illustrator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illustrator"
+          },
+          "card_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Type"
+          },
+          "cardmarket_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardmarket Url",
+            "description": "Cardmarket product page; `null` on Sandbox and Starter."
+          },
+          "tcgplayer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "US market URL",
+            "description": "US market product page; `null` on Sandbox and Starter."
+          },
+          "other_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtherLanguage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Other Languages",
+            "description": "The same card in other languages, sorted by language then id. One language can appear several times when the same artwork was printed in several sets: compare `edition` and `number` through the batch route. `[]` when no other version is known; `null` on Sandbox and Starter."
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "game",
+          "name",
+          "number",
+          "language",
+          "edition",
+          "variants"
+        ],
+        "title": "CardDetail"
+      },
+      "CardPriceHistory": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "cardmarket",
+              "us_market",
+              "ebay"
+            ],
+            "title": "Source"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "default",
+              "foil"
+            ],
+            "title": "Variant"
+          },
+          "market_language": {
+            "type": "string",
+            "enum": [
+              "global",
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Market Language",
+            "description": "Language of the listings behind the curve, as on current prices: `global` for Cardmarket across all languages, `fr` for French Cardmarket listings (cheapest offer, collected weekly at best), `en` for the US market, the language of the card or sealed product for eBay sales."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "title": "To"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "type": "array",
+            "title": "Points",
+            "description": "One point per observed day; gaps are not interpolated."
+          },
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "variant",
+          "market_language",
+          "from",
+          "to",
+          "points",
+          "card_id"
+        ],
+        "title": "CardPriceHistory"
+      },
+      "CardPrices": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/PriceQuote"
+            },
+            "type": "array",
+            "title": "Prices"
+          },
+          "graded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradedPrices"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present with `include=graded`."
+          },
+          "population": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PopulationReport"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Population",
+            "description": "Present with `include=population`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "prices"
+        ],
+        "title": "CardPrices"
+      },
+      "CardSummary": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id",
+            "description": "Stable Valo.Data card id."
+          },
+          "game": {
+            "type": "string",
+            "title": "Game",
+            "description": "Game slug, e.g. `pokemon`, `onepiece`, `star_wars_unlimited`."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Printed name in the card language."
+          },
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En",
+            "description": "English name when known; `name` on an English card."
+          },
+          "number": {
+            "type": "string",
+            "title": "Number",
+            "description": "Collector number as printed, e.g. `001/102`, `OP01-012`."
+          },
+          "rarity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rarity",
+            "description": "Rarity label as printed on the card or as given by the source, in the card language, e.g. `Illustration spéciale rare`, `SuperRare`."
+          },
+          "rarity_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rarity Code",
+            "description": "Canonical rarity code, shared by every language of one rarity system, e.g. `special_illustration_rare`. Japanese and Chinese Pokémon prints follow their own system (`sar`, `ur`). `null` when the rarity is unknown. Codes of a game: `GET /data/v1/games/{game}/rarities`."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Language",
+            "description": "Language of the printed card."
+          },
+          "edition": {
+            "$ref": "#/components/schemas/EditionRef"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "variants": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "default",
+                "foil"
+              ]
+            },
+            "type": "array",
+            "title": "Variants",
+            "description": "Price variants tracked for this card: `default` (main printing) and, for games pricing foils separately, `foil`."
+          },
+          "cardmarket_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardmarket Product Id",
+            "description": "Cardmarket idProduct; `null` on Sandbox and Starter."
+          },
+          "tcgplayer_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "US market product id",
+            "description": "US market product id; `null` on Sandbox and Starter."
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "game",
+          "name",
+          "number",
+          "language",
+          "edition",
+          "variants"
+        ],
+        "title": "CardSummary"
+      },
+      "CompareItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The id as sent."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "not_found"
+            ],
+            "title": "Status"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "CompareItem"
+      },
+      "CompareRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Ids",
+            "description": "Up to 10 card ids, or sealed product ids prefixed with `sealed:` (e.g. `sealed:1234`)."
+          },
+          "include": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "graded",
+                "population"
+              ]
+            },
+            "type": "array",
+            "title": "Include",
+            "description": "Extra card blocks, billed per card."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "CompareRequest"
+      },
+      "CompareResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CompareItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CompareResponse"
+      },
+      "ConditionPrice": {
+        "properties": {
+          "condition": {
+            "type": "string",
+            "enum": [
+              "NM",
+              "EX",
+              "GD",
+              "LP",
+              "PL",
+              "PO"
+            ],
+            "title": "Condition"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount",
+            "description": "Cheapest French-language offer in this condition, in EUR."
+          }
+        },
+        "type": "object",
+        "required": [
+          "condition",
+          "amount"
+        ],
+        "title": "ConditionPrice"
+      },
+      "DailyUsage": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits",
+            "description": "Credits billed that day (UTC)."
+          },
+          "requests": {
+            "type": "integer",
+            "title": "Requests",
+            "description": "Metered requests, errors included."
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "description": "Responses with a status of 400 or more."
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "credits",
+          "requests",
+          "errors"
+        ],
+        "title": "DailyUsage"
+      },
+      "EditionOverview": {
+        "properties": {
+          "edition": {
+            "$ref": "#/components/schemas/EditionSummary"
+          },
+          "cards_priced": {
+            "type": "integer",
+            "title": "Cards Priced",
+            "description": "Cards of the edition with a recommended price."
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/schemas__analysis__SourceCoverage"
+          },
+          "chase_cards": {
+            "items": {
+              "$ref": "#/components/schemas/PricedCard"
+            },
+            "type": "array",
+            "title": "Chase Cards",
+            "description": "Up to 10 most valuable cards, by recommended price."
+          },
+          "sealed": {
+            "items": {
+              "$ref": "#/components/schemas/PricedSealed"
+            },
+            "type": "array",
+            "title": "Sealed",
+            "description": "Up to 10 sealed products of the edition, most valuable first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "edition",
+          "cards_priced",
+          "coverage",
+          "chase_cards",
+          "sealed"
+        ],
+        "title": "EditionOverview"
+      },
+      "EditionRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Edition id, usable as `edition_id` filter."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "Publisher set code, e.g. `SV06`, `OP-01`."
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EditionRef"
+      },
+      "EditionSummary": {
+        "properties": {
+          "edition_id": {
+            "type": "integer",
+            "title": "Edition Id",
+            "description": "Edition id, usable as `edition_id` filter on cards and sealed products."
+          },
+          "game": {
+            "type": "string",
+            "title": "Game"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "Publisher set code, e.g. `SV06`, `OP-01`."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Language"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series",
+            "description": "Series or block of the edition."
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "card_count": {
+            "type": "integer",
+            "title": "Card Count",
+            "description": "Cards of this edition available through the API."
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "symbol_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "edition_id",
+          "game",
+          "name",
+          "language",
+          "card_count"
+        ],
+        "title": "EditionSummary"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Stable snake_case error code, e.g. `card_not_found`, `quota_exceeded`."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Human readable explanation."
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "Identifier of the request, also returned in the `X-Request-Id` header."
+          },
+          "docs_url": {
+            "type": "string",
+            "title": "Docs Url",
+            "description": "Documentation of this error code."
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "request_id",
+          "docs_url"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "GameInfo": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "Game slug used by every `game` parameter."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "languages": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en",
+                "ja",
+                "zh",
+                "de",
+                "es",
+                "it",
+                "pt"
+              ]
+            },
+            "type": "array",
+            "title": "Languages",
+            "description": "Card languages available for this game."
+          },
+          "coverage": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/schemas__games__SourceCoverage"
+            },
+            "type": "object",
+            "title": "Coverage",
+            "description": "Per source coverage: cardmarket, us_market, ebay_raw, ebay_graded, gcc (Graded Card Center completed sales, last 90 days), psa_population, pca_population, ccc_population, sealed_cardmarket, sealed_us_market (US market price), sealed_ebay, sealed_gcc (Graded Card Center completed sales, last 90 days), any_price (cards with a current Cardmarket, US market or 30-day eBay price)."
+          },
+          "editions": {
+            "type": "integer",
+            "title": "Editions",
+            "description": "Editions of the game in the catalogue, every language."
+          },
+          "vision": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Vision",
+            "description": "Valo.Vision status: `available` once at least one language of the game is open to `POST /vision/v1/scans`. Recognition opens per game/language pair after its qualification; the other pairs answer 403 `vision_not_available`."
+          },
+          "vision_languages": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en",
+                "ja",
+                "zh",
+                "de",
+                "es",
+                "it",
+                "pt"
+              ]
+            },
+            "type": "array",
+            "title": "Vision Languages",
+            "description": "Languages open to Valo.Vision for this game (public codes, e.g. `[\"fr\"]`); empty when `vision` is `unavailable`. Any other language of the game answers 403 `vision_not_available` on `POST /vision/v1/scans`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "languages",
+          "coverage",
+          "editions",
+          "vision",
+          "vision_languages"
+        ],
+        "title": "GameInfo"
+      },
+      "GameRarities": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "title": "Game",
+            "description": "Game slug."
+          },
+          "rarities": {
+            "items": {
+              "$ref": "#/components/schemas/RarityInfo"
+            },
+            "type": "array",
+            "title": "Rarities",
+            "description": "Every rarity code of the game, by `rank` then `code`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "rarities"
+        ],
+        "title": "GameRarities"
+      },
+      "GamesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GameInfo"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "GamesResponse"
+      },
+      "GradedPrices": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "EUR",
+            "title": "Currency",
+            "default": "EUR"
+          },
+          "collection": {
+            "type": "string",
+            "const": "best_effort",
+            "title": "Collection",
+            "default": "best_effort"
+          },
+          "quotes": {
+            "items": {
+              "$ref": "#/components/schemas/GradedQuote"
+            },
+            "type": "array",
+            "title": "Quotes",
+            "description": "One quote per company and grade with sales; empty without any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "quotes"
+        ],
+        "title": "GradedPrices"
+      },
+      "GradedQuote": {
+        "properties": {
+          "grader": {
+            "type": "string",
+            "enum": [
+              "psa",
+              "pca",
+              "ccc",
+              "collect_aura",
+              "bgs",
+              "cgc"
+            ],
+            "title": "Grader",
+            "description": "Grading company of the sold copies; never mixed with another."
+          },
+          "grade": {
+            "type": "integer",
+            "enum": [
+              9,
+              10
+            ],
+            "title": "Grade",
+            "description": "Exact numeric grade; CCC 10 excludes the Gold and Black labels."
+          },
+          "window_days": {
+            "type": "integer",
+            "enum": [
+              30,
+              90,
+              365
+            ],
+            "title": "Window Days",
+            "description": "Sales window: 30 days from 4 sales, else 90 days; 365 for the last known value."
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount",
+            "description": "Sold price in EUR, weighted by volume and recency; `null` unless `status` is `available`."
+          },
+          "sales_count": {
+            "type": "integer",
+            "title": "Sales Count",
+            "description": "Sales behind the quote, in the window."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "stale",
+              "insufficient_sample",
+              "missing"
+            ],
+            "title": "Status",
+            "description": "`insufficient_sample`: fewer than 3 sales in the window. `stale`: no sale in the last 90 days."
+          }
+        },
+        "type": "object",
+        "required": [
+          "grader",
+          "grade",
+          "window_days",
+          "amount",
+          "sales_count",
+          "status"
+        ],
+        "title": "GradedQuote"
+      },
+      "HistoryPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "EUR",
+              "USD"
+            ],
+            "title": "Currency"
+          },
+          "metric": {
+            "type": "string",
+            "enum": [
+              "trend",
+              "low",
+              "market",
+              "sold_median_raw"
+            ],
+            "title": "Metric"
+          },
+          "sales_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sales Count",
+            "description": "eBay only: sales that day."
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "NM",
+                  "EX",
+                  "GD",
+                  "LP",
+                  "PL",
+                  "PO"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition",
+            "description": "French Cardmarket listings only: condition of the offer kept that day (best available, NM first, unless the `condition` filter is set)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "amount",
+          "currency",
+          "metric"
+        ],
+        "title": "HistoryPoint"
+      },
+      "IdentifyCandidate": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "0 to 1: number 0.4, name similarity 0.3, edition 0.15, language 0.1, variant 0.05."
+          },
+          "matched_on": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "number",
+                "name",
+                "edition",
+                "language",
+                "variant"
+              ]
+            },
+            "type": "array",
+            "title": "Matched On",
+            "description": "Signals of the query the card matched."
+          }
+        },
+        "type": "object",
+        "required": [
+          "card",
+          "score",
+          "matched_on"
+        ],
+        "title": "IdentifyCandidate"
+      },
+      "IdentifyResponse": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/IdentifyCandidate"
+            },
+            "type": "array",
+            "title": "Candidates",
+            "description": "Up to 5 cards, best first; empty when nothing matches."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "candidates"
+        ],
+        "title": "IdentifyResponse"
+      },
+      "Mover": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary"
+          },
+          "recommended": {
+            "$ref": "#/components/schemas/RecommendedPrice"
+          },
+          "change_pct": {
+            "type": "number",
+            "title": "Change Pct"
+          },
+          "change_source": {
+            "type": "string",
+            "enum": [
+              "cardmarket",
+              "us_market",
+              "ebay"
+            ],
+            "title": "Change Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card",
+          "recommended",
+          "change_pct",
+          "change_source"
+        ],
+        "title": "Mover"
+      },
+      "OtherLanguage": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id",
+            "description": "Card id of this version; `POST /data/v1/cards/batch` returns its sheet and prices."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Language",
+            "description": "Language of this version."
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "language"
+        ],
+        "title": "OtherLanguage"
+      },
+      "Overage": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Paid overage is not available during the beta.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "Overage"
+      },
+      "Page_CardSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Opaque cursor for the next page; `null` on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[CardSummary]"
+      },
+      "Page_EditionSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EditionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Opaque cursor for the next page; `null` on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[EditionSummary]"
+      },
+      "Page_SealedSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SealedSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Opaque cursor for the next page; `null` on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[SealedSummary]"
+      },
+      "PopulationReport": {
+        "properties": {
+          "grader": {
+            "type": "string",
+            "enum": [
+              "psa",
+              "pca",
+              "ccc"
+            ],
+            "title": "Grader"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Print specificity, e.g. `1st Edition`, `Holo`."
+          },
+          "grades": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Grades",
+            "description": "Graded copies per grade, e.g. `{\"10\": 312, \"9.5\": 40}`."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At",
+            "description": "When the grader report was read."
+          }
+        },
+        "type": "object",
+        "required": [
+          "grader",
+          "grades",
+          "total",
+          "observed_at"
+        ],
+        "title": "PopulationReport"
+      },
+      "PriceChange": {
+        "properties": {
+          "period_days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ],
+            "title": "Period Days"
+          },
+          "change_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Pct",
+            "description": "Price change over the period in %; `null` without enough data."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cardmarket",
+                  "us_market",
+                  "ebay"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Single source of the change: eBay when 4 sales at least in the period, else the US market, else Cardmarket (as the ValoTCG Trending)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "period_days",
+          "change_pct",
+          "source"
+        ],
+        "title": "PriceChange"
+      },
+      "PriceQuote": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "cardmarket",
+              "us_market",
+              "ebay"
+            ],
+            "title": "Source"
+          },
+          "metric": {
+            "type": "string",
+            "enum": [
+              "trend",
+              "low",
+              "market",
+              "sold_median_raw"
+            ],
+            "title": "Metric",
+            "description": "`trend` and `low` (Cardmarket), `market` (US market, USD), `sold_median_raw` (eBay sold, ungraded)."
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount",
+            "description": "Price in `currency`; `null` whenever `status` is not `available`."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "EUR",
+              "USD"
+            ],
+            "title": "Currency",
+            "description": "Native currency of the source; never converted."
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "default",
+              "foil"
+            ],
+            "title": "Variant"
+          },
+          "card_language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Card Language"
+          },
+          "market_language": {
+            "type": "string",
+            "enum": [
+              "global",
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Market Language",
+            "description": "Language of the listings behind the price: `global` for Cardmarket prices across all languages, `fr` for French Cardmarket listings, `en` for the US market, the language of the card for eBay sales."
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At",
+            "description": "Date the source observed this price (not the recompute date)."
+          },
+          "computed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Computed At",
+            "description": "When Valo.Data last recomputed the snapshot."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "stale",
+              "insufficient_sample",
+              "missing"
+            ],
+            "title": "Status",
+            "description": "`stale`: Cardmarket/US market observation older than 48 h (35 days for French Cardmarket listings, collected weekly at best). `insufficient_sample`: fewer than 3 eBay sales in the window. `missing`: no observation."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Machine readable cause when not `available`."
+          },
+          "window_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Days",
+            "description": "eBay only: sales window in days."
+          },
+          "sales_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sales Count",
+            "description": "eBay only: sales in the window."
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "best_effort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "eBay only: sales are collected on a best effort basis."
+          },
+          "last_collected_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Collected At",
+            "description": "eBay only: latest sale day collected."
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "NM",
+                  "EX",
+                  "GD",
+                  "LP",
+                  "PL",
+                  "PO"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition",
+            "description": "French Cardmarket listings only: condition of the offer behind `amount`."
+          },
+          "conditions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConditionPrice"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions",
+            "description": "French Cardmarket listings only: cheapest offer per condition in the same scrape, best condition first; `null` whenever `amount` is `null`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "metric",
+          "amount",
+          "currency",
+          "variant",
+          "card_language",
+          "market_language",
+          "observed_at",
+          "computed_at",
+          "status"
+        ],
+        "title": "PriceQuote"
+      },
+      "PriceSummary": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "card",
+              "sealed"
+            ],
+            "title": "Type"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sealed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SealedSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recommended": {
+            "$ref": "#/components/schemas/RecommendedPrice"
+          },
+          "reliability": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "stale",
+              "insufficient_sample"
+            ],
+            "title": "Reliability",
+            "description": "`insufficient_sample`: no source qualifies for a recommended price. `stale`: the retained Cardmarket or US market observation is older than 48 h (35 days for French Cardmarket offers)."
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/PriceChange"
+            },
+            "type": "array",
+            "title": "Changes",
+            "description": "Changes over 7, 30 and 90 days."
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/PriceQuote"
+            },
+            "type": "array",
+            "title": "Prices",
+            "description": "Every source in its native currency, as on /prices."
+          },
+          "graded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradedPrices"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cards, with `include=graded`."
+          },
+          "population": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PopulationReport"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Population",
+            "description": "Cards, with `include=population`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "recommended",
+          "reliability",
+          "changes",
+          "prices"
+        ],
+        "title": "PriceSummary"
+      },
+      "PricedCard": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary"
+          },
+          "recommended": {
+            "$ref": "#/components/schemas/RecommendedPrice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card",
+          "recommended"
+        ],
+        "title": "PricedCard"
+      },
+      "PricedSealed": {
+        "properties": {
+          "sealed": {
+            "$ref": "#/components/schemas/SealedSummary"
+          },
+          "recommended": {
+            "$ref": "#/components/schemas/RecommendedPrice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sealed",
+          "recommended"
+        ],
+        "title": "PricedSealed"
+      },
+      "RarityInfo": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Canonical rarity code, the `rarity_code` of cards and a value of the `rarity` filter."
+          },
+          "name_en": {
+            "type": "string",
+            "title": "Name En",
+            "description": "English name of the rarity."
+          },
+          "name_fr": {
+            "type": "string",
+            "title": "Name Fr",
+            "description": "French name of the rarity."
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank",
+            "description": "Sort order within the game: lower is more common."
+          },
+          "languages": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en",
+                "ja",
+                "zh",
+                "de",
+                "es",
+                "it",
+                "pt"
+              ]
+            },
+            "type": "array",
+            "title": "Languages",
+            "description": "Card languages carrying this code; empty when no card has it yet."
+          },
+          "card_count": {
+            "type": "integer",
+            "title": "Card Count",
+            "description": "Cards of the game carrying this code, all languages."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name_en",
+          "name_fr",
+          "rank",
+          "languages",
+          "card_count"
+        ],
+        "title": "RarityInfo"
+      },
+      "RecommendedPrice": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount",
+            "description": "The price the ValoTCG app displays, in EUR; `null` when no source qualifies."
+          },
+          "currency": {
+            "type": "string",
+            "const": "EUR",
+            "title": "Currency",
+            "default": "EUR"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ebay_30d",
+                  "ebay_3m",
+                  "cardmarket",
+                  "us_market"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "`ebay_30d` / `ebay_3m`: median of eBay sales (4 sales at least; 2 for sealed products), `cardmarket`: French offer, then trend, then low, `us_market`: US market price converted to EUR."
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At",
+            "description": "Date the retained source observed this price."
+          },
+          "window_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Days",
+            "description": "eBay only: sales window in days."
+          },
+          "sales_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sales Count",
+            "description": "eBay only: sales in the window."
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence",
+            "description": "Reliability level of this price in the ValoTCG app: sample size, freshness and agreement between sources."
+          },
+          "fx_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate",
+            "description": "US market only: USD→EUR rate applied (ECB)."
+          },
+          "fx_rate_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate Date",
+            "description": "US market only: day of that rate."
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "source",
+          "observed_at"
+        ],
+        "title": "RecommendedPrice"
+      },
+      "RetailPrice": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "title": "Amount",
+            "description": "Launch retail price, in `currency`."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "EUR",
+              "USD",
+              "JPY"
+            ],
+            "title": "Currency",
+            "description": "Currency of the product's own market (EUR for French, USD for English, JPY for Japanese), never converted."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "estimated",
+              "verified"
+            ],
+            "title": "Source",
+            "description": "`estimated` from the product type, name and release period; `verified` checked product by product."
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "source"
+        ],
+        "title": "RetailPrice"
+      },
+      "SealedDetail": {
+        "properties": {
+          "sealed_id": {
+            "type": "integer",
+            "title": "Sealed Id",
+            "description": "Stable Valo.Data sealed product id (`sealed:{id}` in batches)."
+          },
+          "game": {
+            "type": "string",
+            "title": "Game"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "product_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Type",
+            "description": "e.g. booster, display, etb, starter_deck."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Language"
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EditionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "msrp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetailPrice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Launch retail price (MSRP) on the product's market; `null` when unknown."
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "Slug of the product's page on valotcg.com."
+          },
+          "cardmarket_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardmarket Product Id",
+            "description": "Cardmarket idProduct; `null` on Sandbox and Starter."
+          },
+          "tcgplayer_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "US market product id",
+            "description": "US market product id; `null` on Sandbox and Starter."
+          },
+          "boosters": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boosters",
+            "description": "Boosters contained, when known."
+          },
+          "cardmarket_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardmarket Url",
+            "description": "Cardmarket product page; `null` on Sandbox and Starter."
+          },
+          "tcgplayer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "US market URL",
+            "description": "US market product page; `null` on Sandbox and Starter."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sealed_id",
+          "game",
+          "name",
+          "language",
+          "slug"
+        ],
+        "title": "SealedDetail"
+      },
+      "SealedPriceHistory": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "cardmarket",
+              "us_market",
+              "ebay"
+            ],
+            "title": "Source"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "default",
+              "foil"
+            ],
+            "title": "Variant"
+          },
+          "market_language": {
+            "type": "string",
+            "enum": [
+              "global",
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Market Language",
+            "description": "Language of the listings behind the curve, as on current prices: `global` for Cardmarket across all languages, `fr` for French Cardmarket listings (cheapest offer, collected weekly at best), `en` for the US market, the language of the card or sealed product for eBay sales."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "title": "To"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "type": "array",
+            "title": "Points",
+            "description": "One point per observed day; gaps are not interpolated."
+          },
+          "sealed_id": {
+            "type": "integer",
+            "title": "Sealed Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "variant",
+          "market_language",
+          "from",
+          "to",
+          "points",
+          "sealed_id"
+        ],
+        "title": "SealedPriceHistory"
+      },
+      "SealedPrices": {
+        "properties": {
+          "sealed_id": {
+            "type": "integer",
+            "title": "Sealed Id"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/PriceQuote"
+            },
+            "type": "array",
+            "title": "Prices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sealed_id",
+          "prices"
+        ],
+        "title": "SealedPrices"
+      },
+      "SealedSummary": {
+        "properties": {
+          "sealed_id": {
+            "type": "integer",
+            "title": "Sealed Id",
+            "description": "Stable Valo.Data sealed product id (`sealed:{id}` in batches)."
+          },
+          "game": {
+            "type": "string",
+            "title": "Game"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "product_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Type",
+            "description": "e.g. booster, display, etb, starter_deck."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en",
+              "ja",
+              "zh",
+              "de",
+              "es",
+              "it",
+              "pt"
+            ],
+            "title": "Language"
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EditionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "msrp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetailPrice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Launch retail price (MSRP) on the product's market; `null` when unknown."
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "Slug of the product's page on valotcg.com."
+          },
+          "cardmarket_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardmarket Product Id",
+            "description": "Cardmarket idProduct; `null` on Sandbox and Starter."
+          },
+          "tcgplayer_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "US market product id",
+            "description": "US market product id; `null` on Sandbox and Starter."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sealed_id",
+          "game",
+          "name",
+          "language",
+          "slug"
+        ],
+        "title": "SealedSummary"
+      },
+      "TopMovers": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "title": "Game"
+          },
+          "edition_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edition Id"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fr",
+                  "en",
+                  "ja",
+                  "zh",
+                  "de",
+                  "es",
+                  "it",
+                  "pt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "period_days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ],
+            "title": "Period Days"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Direction"
+          },
+          "reliable": {
+            "type": "boolean",
+            "title": "Reliable",
+            "description": "`true`: only the moves the recommended price backs (`reliable` parameter).",
+            "default": false
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Mover"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Cards of 10 EUR and more, largest change first (Pokémon Base sets aside)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "period_days",
+          "direction",
+          "items"
+        ],
+        "title": "TopMovers"
+      },
+      "TopPriced": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "title": "Game"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "card",
+              "sealed"
+            ],
+            "title": "Kind"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fr",
+                  "en",
+                  "ja",
+                  "zh",
+                  "de",
+                  "es",
+                  "it",
+                  "pt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "edition_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edition Id"
+          },
+          "product_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Type"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete",
+            "description": "`true`: the ranking covers the whole selection. `false`: too many snapshots had a source above their recommended price; the items are the most valuable of the part read."
+          },
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PricedCard"
+                },
+                {
+                  "$ref": "#/components/schemas/PricedSealed"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Cards (`kind=card`) or sealed products (`kind=sealed`) with a recommended price, most valuable first (ties by id); prices of `low` confidence are left out (an aberrant marketplace offer would top the ranking); fewer than `limit` when fewer are priced."
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "kind",
+          "complete",
+          "items"
+        ],
+        "title": "TopPriced"
+      },
+      "UsageResponse": {
+        "properties": {
+          "product": {
+            "type": "string",
+            "enum": [
+              "data",
+              "vision",
+              "ia"
+            ],
+            "title": "Product",
+            "description": "`data` (credits), `vision` (scans) or `ia` (questions)."
+          },
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Subscription status."
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start",
+            "description": "Start of the current monthly credit window (trial: its start)."
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End",
+            "description": "End (exclusive) of the current monthly credit window; `null` for the trial."
+          },
+          "resets_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resets At",
+            "description": "When the credits renew; `null` for the trial (never)."
+          },
+          "credits_included": {
+            "type": "integer",
+            "title": "Credits Included"
+          },
+          "credits_used": {
+            "type": "integer",
+            "title": "Credits Used"
+          },
+          "credits_remaining": {
+            "type": "integer",
+            "title": "Credits Remaining"
+          },
+          "rate_limit_per_minute": {
+            "type": "integer",
+            "title": "Rate Limit Per Minute"
+          },
+          "overage": {
+            "$ref": "#/components/schemas/Overage"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyUsage"
+            },
+            "type": "array",
+            "title": "Daily",
+            "description": "Last 30 days (UTC), oldest first, days without traffic at 0."
+          }
+        },
+        "type": "object",
+        "required": [
+          "product",
+          "plan_id",
+          "status",
+          "period_start",
+          "period_end",
+          "resets_at",
+          "credits_included",
+          "credits_used",
+          "credits_remaining",
+          "rate_limit_per_minute",
+          "daily"
+        ],
+        "title": "UsageResponse"
+      },
+      "schemas__analysis__SourceCoverage": {
+        "properties": {
+          "cardmarket": {
+            "type": "integer",
+            "title": "Cardmarket",
+            "description": "Cards with a Cardmarket price (French offer, trend or low)."
+          },
+          "us_market": {
+            "type": "integer",
+            "title": "Us Market",
+            "description": "Cards with a US market price."
+          },
+          "ebay": {
+            "type": "integer",
+            "title": "Ebay",
+            "description": "Cards with enough eBay sales (4 in 30 or 90 days) for an eBay price."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cardmarket",
+          "us_market",
+          "ebay"
+        ],
+        "title": "SourceCoverage"
+      },
+      "schemas__games__SourceCoverage": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "stale",
+              "missing"
+            ],
+            "title": "Status",
+            "description": "`available`: values observed within 2 days (Cardmarket, US market), 7 days (eBay, Graded Card Center completed sales) or 8 days (PSA/PCA/CCC population reads). `stale`: values exist but are older. `missing`: no value."
+          },
+          "refs_total": {
+            "type": "integer",
+            "title": "Refs Total",
+            "description": "Cards (or sealed products for `sealed_*` sources) of the game."
+          },
+          "refs_with_value": {
+            "type": "integer",
+            "title": "Refs With Value",
+            "description": "References carrying a value for this source."
+          },
+          "latest_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Observed At",
+            "description": "Most recent observation day."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "refs_total",
+          "refs_with_value"
+        ],
+        "title": "SourceCoverage"
+      }
+    },
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "http",
+        "description": "`Authorization: Bearer vd_live_…` (or `vd_test_…`). Keys are shown once at creation.",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Games",
+      "description": "Games, card languages, per source coverage and rarity codes. Free."
+    },
+    {
+      "name": "Editions",
+      "description": "Sets and expansions of a game."
+    },
+    {
+      "name": "Cards",
+      "description": "Card search, card sheets, current prices, batches and price history."
+    },
+    {
+      "name": "Sealed",
+      "description": "Sealed products (boosters, displays, ETB…), prices and history."
+    },
+    {
+      "name": "Analysis",
+      "description": "Ready-to-display answers: identification, recommended price and changes, top movers, most valuable products, comparison, edition overview."
+    },
+    {
+      "name": "Usage",
+      "description": "Credits used in the current month. Free; accepts an API key."
+    }
+  ]
+}

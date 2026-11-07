@@ -1,0 +1,77 @@
+{
+  "name": "valotcg",
+  "version": "1.0.1",
+  "description": "Official JavaScript and TypeScript SDK for Valo.Data, the ValoTCG trading card price API (14 TCGs, cards and sealed products).",
+  "keywords": [
+    "valotcg",
+    "valo-data",
+    "tcg",
+    "trading cards",
+    "card prices",
+    "pokemon",
+    "one piece",
+    "lorcana",
+    "magic",
+    "yu-gi-oh",
+    "api",
+    "sdk"
+  ],
+  "homepage": "https://valotcg.com/developers/docs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valotcg/valo-data-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/valotcg/valo-data-js/issues"
+  },
+  "license": "MIT",
+  "author": "ValoTCG (https://valotcg.com)",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "openapi.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:live": "vitest run test/live.test.ts",
+    "regenerate": "node scripts/regenerate.mjs",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^18.19.130",
+    "eslint": "^9.39.5",
+    "openapi-typescript": "^7.13.0",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^6.4.5",
+    "vitest": "^3.2.7"
+  }
+}
